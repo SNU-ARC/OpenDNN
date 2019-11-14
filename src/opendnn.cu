@@ -3,8 +3,6 @@
 #include <iomanip>
 #include <limits>
 
-#include "numberadt.hpp"
-
 #include "opendnn.h"
 #include "opendnn_kernel.cuh"
 
@@ -32,7 +30,6 @@ struct opendnnContext {
 };
 
 void opendnnCreate (opendnnHandle_t* handle) {
-    Number::ParseConfigs("config.txt");
     *handle = new opendnnContext;
 
     #ifdef __cuBLAS_ENGINE__
@@ -204,6 +201,66 @@ void opendnnAddTensor (opendnnHandle_t handle,
     DEBUG(output_data);
 }
 
+void opendnnConvolutionForwardCpp (opendnnHandle_t handle,
+  const opendnnTensorDescriptor_t bottom_desc, const float* bottom,
+  const opendnnFilterDescriptor_t filter_desc, const float* filter,
+  const opendnnConvolutionDescriptor_t conv_desc, float* workspace, size_t workSpaceSizeInBytes,
+  const opendnnTensorDescriptor_t top_desc, float* top) {
+    int bot_n, bot_c, bot_h, bot_w, bot_nst, bot_cst, bot_hst, bot_wst;
+    int top_n, top_c, top_h, top_w, top_nst, top_cst, top_hst, top_wst;
+    int pad_h, pad_w, str_h, str_w, ups_x, ups_y;
+    int fil_out, fil_in, fil_h, fil_w;
+    int group;
+    opendnnGetTensor4dDescriptor (bottom_desc, &bot_n, &bot_c, &bot_h, &bot_w,
+        &bot_nst, &bot_cst, &bot_hst, &bot_wst);
+    opendnnGetTensor4dDescriptor (top_desc, &top_n, &top_c, &top_h, &top_w,
+        &top_nst, &top_cst, &top_hst, &top_wst);
+    opendnnGetFilter4dDescriptor (filter_desc, &fil_out, &fil_in, &fil_h, &fil_w);
+    opendnnGetConvolution2dDescriptor (conv_desc, &pad_h, &pad_w, &str_h, &str_w, &ups_x, &ups_y);
+    opendnnGetConvolutionGroupCount(conv_desc, &group);
+
+    float *col_buf = workspace;
+    size_t col_nst = top_h*top_w*bot_c*fil_h*fil_w;
+
+    int fil_out_ = fil_out / group;
+    int fil_in_  = fil_in / group;
+    int bot_c_   = bot_c / group;
+    int top_c_   = top_c / group;
+
+    float* output = top;
+    for (int n = 0; n < top_n; n++) {
+        for (int g = 0; g < groups; g++) {
+            o_head = o_g * g;
+            k_head = k_g * g;
+            for (int o = 0; o < o_g; o++) {
+                for (int k = 0; k < k_g; k++) {
+                    for (int y = 0; y < top_h; y++) {
+                        for (int x = 0; x < top_w; x++) {
+                            for (int r = 0; r < kernel_d; r++) {
+                                for (int p = 0; p < fil_h; p++) {
+                                    for (int q = 0; q < fil_w; q++) {
+                                        int in_y = y * str_h - pad_h + p * ups_y;
+                                        int in_x = x * str_w - pad_w + q * ups_x;
+                                        if (in_y >= 0 && in_y < bot_h && in_x >= 0 && in_x < bot_w) {
+                                            int weight_offset = (o + o_head) * fil_in * fil_h * fil_w + k * fil_h * fil_w + p * fil_w + q;
+                                            int in_offset = n * bot_cst + (k + k_head) * bot_hst + in_y * bot_wst + in_x;
+                                            int out_offset = n * top_cst + (o + o_head) * top_hst + y * top_wst + x;
+                                            top[out_offset] += bottom[in_offset] * filter[weight_offset]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    DEBUG(bottom);
+    DEBUG(top);
+}
+
+
 void im2col_gpu(const float* data_im, const int channels,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
@@ -228,7 +285,7 @@ void im2col_gpu(const float* data_im, const int channels,
 void opendnnInnerProductForward(opendnnHandle_t handle,
     opendnnTensorDescriptor_t input_desc, bool TransA, float* input,
     opendnnTensorDescriptor_t weight_desc, bool TransB, float* weight,
-    opendnnTensorDescriptor_t output_desc, float* output, string name){
+    opendnnTensorDescriptor_t output_desc, float* output){
   int in_n, in_c, in_h, in_w, in_nst, in_cst, in_hst, in_wst;
   int out_n, out_c, out_h, out_w, out_nst, out_cst, out_hst, out_wst;
   // int wei_n, wei_c, wei_h, wei_w;
@@ -246,11 +303,11 @@ void opendnnInnerProductForward(opendnnHandle_t handle,
   dim3 block(BLOCK_SIZE, BLOCK_SIZE);
 
   if (TransA == false & TransB == false)
-    number_matmul_block_lin_shared<<<grid,block,0,global_stream>>>
-      (input,weight,output,M,K,K,N,M,N, Number::cfg[name + ".input"], Number::cfg[name + ".weight"]);
+    matmul_block_lin_shared<<<grid,block,0,global_stream>>>
+      (input,weight,output,M,K,K,N,M,N);
   else if (TransA == false & TransB == true)
-    number_matmul_block_lin_shared_trans<<<grid,block,0,global_stream>>>
-      (input,weight,output,M,K,N,K,M,N, Number::cfg[name + ".input"], Number::cfg[name + ".weight"]);
+    matmul_block_lin_shared_trans<<<grid,block,0,global_stream>>>
+      (input,weight,output,M,K,N,K,M,N);
   else if (TransB == true & TransB == false){
     cout << "Error! InnerProduct: transB, not supported yet" << endl;
     exit(-1);
@@ -282,7 +339,7 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
   const opendnnTensorDescriptor_t bottom_desc, const float* bottom,
   const opendnnFilterDescriptor_t filter_desc, const float* filter,
   const opendnnConvolutionDescriptor_t conv_desc, float* workspace, size_t workSpaceSizeInBytes,
-  const opendnnTensorDescriptor_t top_desc, float* top, const string name) {
+  const opendnnTensorDescriptor_t top_desc, float* top) {
     int bot_n, bot_c, bot_h, bot_w, bot_nst, bot_cst, bot_hst, bot_wst;
     int top_n, top_c, top_h, top_w, top_nst, top_cst, top_hst, top_wst;
     int pad_h, pad_w, str_h, str_w, ups_x, ups_y;
@@ -343,9 +400,9 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
         );
         #else
         // Row-major GEMM
-        number_gemmStridedBatched<<<grid,block,0,global_stream>>>(M,N,K,
-          A,M,0, B,K,col_nst, C,M,top_nst,
-          Number::cfg[name+".weight"], Number::cfg[name+".input"]);
+        gemmStridedBatched<<<grid,block,0,global_stream>>>(M,N,K,
+          A,M,0, B,K,col_nst, C,M,top_nst
+        );
         #endif
     }
 
@@ -433,3 +490,5 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
 //     DEBUG(bottom);
 //     DEBUG(top);
 // }
+
+
