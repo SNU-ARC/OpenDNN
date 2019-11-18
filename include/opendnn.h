@@ -2,8 +2,10 @@
 #define openDNN_H_
 
 #include <string>
+#ifdef IF_CUDA
 #include <cuda.h>
 #include <cudnn.h>
+#endif
 
 // ======================================================================
 //
@@ -98,7 +100,9 @@ typedef struct opendnnNormStruct {
 
 // OpenDNN API
 void opendnnCreate (opendnnHandle_t*);
+#ifdef IF_CUDA
 void opendnnSetStream (CUstream);
+#endif
 
 // Tensor management
 void opendnnCreateTensorDescriptor (opendnnTensorDescriptor_t*);
@@ -163,7 +167,7 @@ void opendnnConvolutionForward (opendnnHandle_t,
                                 const opendnnTensorDescriptor_t, const float*,
                                 const opendnnFilterDescriptor_t, const float*,
                                 const opendnnConvolutionDescriptor_t, float*, size_t,
-                                const opendnnTensorDescriptor_t, float*, const std::string name);
+                                const opendnnTensorDescriptor_t, float*);
 // void opendnnConvolutionForward_cu (cudnnHandle_t,
 //                                 const cudnnTensorDescriptor_t, const float*,
 //                                 const cudnnFilterDescriptor_t, const float*,
@@ -178,6 +182,6 @@ void opendnnConvolutionForward (opendnnHandle_t,
 void opendnnInnerProductForward(opendnnHandle_t handle,
     opendnnTensorDescriptor_t input_desc, bool TransA, float* input,
     opendnnTensorDescriptor_t weight_desc, bool TransB, float* weight,
-    opendnnTensorDescriptor_t output_desc, float* output, std::string name);
+    opendnnTensorDescriptor_t output_desc, float* output);
 
 #endif // OPEN_CNN_H_
