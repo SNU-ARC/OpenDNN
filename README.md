@@ -2,6 +2,7 @@
 
 OpenDNN is an open-source, cuDNN-like deep learning primitive library to support various framework and hardware architectures such as FPGA and acceleartor.
 OpenDNN is implemented as CUDA and OpenCL and ported on popular DNN frameworks (Caffe, Tensorflow).
+![OpenDNN Structure](/static/opendnn.png)
 
 # Requirements (GPU)
 ## Nvidia Driver
@@ -37,4 +38,5 @@ or download it on Nvidia CuDNN install homepage.
 in the `src` folder, then shared & static library will be built.
 3. You should add the `PATH` and `LD_LIBRARY_PATH` on the current library, or copy it on the default library and binary path.
 
-Here is the [http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf](Paper) Link.
+# Reference
+[OpenDNN: An Open-source cuDNN-like Deep Learning Primitive Library](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
