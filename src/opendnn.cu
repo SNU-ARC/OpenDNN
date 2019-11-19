@@ -19,7 +19,9 @@ using namespace std;
 cublasHandle_t cublas_handle;
 #endif
 
+#ifdef IF_CUDA
 CUstream global_stream;
+#endif
 
 struct opendnnContext {
     int driver_num_;
@@ -38,12 +40,14 @@ void opendnnCreate (opendnnHandle_t* handle) {
     #endif
 }
 
+#ifdef IF_CUDA
 void opendnnSetStream (CUstream stream) {
     global_stream = stream;
     #ifdef __cuBLAS_ENGINE__
     cublasSetStream(cublas_handle, global_stream);
     #endif
 }
+#endif
 
 
 // Tensor management
@@ -260,6 +264,7 @@ void opendnnAddTensor (opendnnHandle_t handle,
 //     DEBUG(top);
 // }
 
+#ifdef IF_CUDA
 void im2col_gpu(const float* data_im, const int channels,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
@@ -408,7 +413,7 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
     DEBUG(bottom);
     DEBUG(top);
 }
-
+#endif
 
 // void opendnnConvolutionForward_cu (cudnnHandle_t handle,
 //   const cudnnTensorDescriptor_t bottom_desc, const float* bottom,

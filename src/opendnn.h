@@ -2,8 +2,10 @@
 #define openDNN_H_
 
 #include <string>
+#ifdef IF_CUDA
 #include <cuda.h>
 #include <cudnn.h>
+#endif
 
 // ======================================================================
 //
@@ -98,7 +100,9 @@ typedef struct opendnnNormStruct {
 
 // OpenDNN API
 void opendnnCreate (opendnnHandle_t*);
+#ifdef IF_CUDA
 void opendnnSetStream (CUstream);
+#endif
 
 // Tensor management
 void opendnnCreateTensorDescriptor (opendnnTensorDescriptor_t*);

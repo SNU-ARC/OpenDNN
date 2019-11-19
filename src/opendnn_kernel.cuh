@@ -53,16 +53,6 @@ __global__ void naive_matmul( int M, int N, int K,
     }
 }
 
-// Allocation and Unbox kernel
-__global__ void allocDataUnbox(float* output, float* input, const int maxsize, const DataType type, const int bwTotal, const int bwInt) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    Number temp(type, bwTotal, bwInt);
-    if (i < maxsize) {
-        temp = input[i];
-        output[i] = temp.asFloat();
-    }
-}
-
 // Blocked (Tiled) version
 __global__ void matmul_block(float* A, float* B, float* C,
                              int ARows, int ACols, int BRows,
