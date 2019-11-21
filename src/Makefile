@@ -8,9 +8,9 @@ CFLAGS+=-I$(CXX_PRJ) -I.
 
 all: libopendnn.so libopendnn.a
 	@echo "libnumber with opendnn is built sucessfully !"
-	@use this command to set the path
-	@export PATH:=/path/to/include
-	@export LD_LIBRARY_PATH:=/path/to/lib(.so and .a)
+	@echo "use this command to set the path"
+	@echo "export PATH:=/path/to/include"
+	@echo "export LD_LIBRARY_PATH:=/path/to/lib(.so and .a)"
 
 # Generating shared & static library for CUDA
 ifeq ($(IF_CUDA), 1)
