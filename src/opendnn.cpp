@@ -177,59 +177,59 @@ void opendnnAddTensor (opendnnHandle_t handle,
 }
 
 void opendnnConvolutionForward (opendnnHandle_t handle,
-  const opendnnTensorDescriptor_t bottom_desc, const float* bottom,
+  const opendnnTensorDescriptor_t input_desc, const float* input,
   const opendnnFilterDescriptor_t filter_desc, const float* filter,
   const opendnnConvolutionDescriptor_t conv_desc, float* workspace, size_t workSpaceSizeInBytes,
-  const opendnnTensorDescriptor_t top_desc, float* top) {
-    int bot_n, bot_c, bot_h, bot_w, bot_nst, bot_cst, bot_hst, bot_wst;
-    int top_n, top_c, top_h, top_w, top_nst, top_cst, top_hst, top_wst;
+  const opendnnTensorDescriptor_t output_desc, float* output) {
+    int in_n, in_c, in_h, in_w, in_nst, in_cst, in_hst, in_wst;
+    int out_n, out_c, out_h, out_w, out_nst, out_cst, out_hst, out_wst;
     int pad_h, pad_w, str_h, str_w, ups_x, ups_y;
     int fil_out, fil_in, fil_h, fil_w;
     int group;
-    opendnnGetTensor4dDescriptor (bottom_desc, &bot_n, &bot_c, &bot_h, &bot_w,
-        &bot_nst, &bot_cst, &bot_hst, &bot_wst);
-    opendnnGetTensor4dDescriptor (top_desc, &top_n, &top_c, &top_h, &top_w,
-        &top_nst, &top_cst, &top_hst, &top_wst);
+    opendnnGetTensor4dDescriptor (input_desc, &in_n, &in_c, &in_h, &in_w,
+        &in_nst, &in_cst, &in_hst, &in_wst);
+    opendnnGetTensor4dDescriptor (output_desc, &out_n, &out_c, &out_h, &out_w,
+        &out_nst, &out_cst, &out_hst, &out_wst);
     opendnnGetFilter4dDescriptor (filter_desc, &fil_out, &fil_in, &fil_h, &fil_w);
     opendnnGetConvolution2dDescriptor (conv_desc, &pad_h, &pad_w, &str_h, &str_w, &ups_x, &ups_y);
     opendnnGetConvolutionGroupCount(conv_desc, &group);
-
-    float *col_buf = workspace;
-    size_t col_nst = top_h*top_w*bot_c*fil_h*fil_w;
-
     int fil_out_ = fil_out / group;
     int fil_in_  = fil_in / group;
-    int bot_c_   = bot_c / group;
-    int top_c_   = top_c / group;
+    int in_c_   = in_c / group;
+    int out_c_   = out_c / group;
 
-    float* output = top;
-    for (int n = 0; n < top_n; n++) {
-        for (int g = 0; g < group; g++) {
-            int top_head = top_c_ * g;
-            int bot_head = bot_c_ * g;
-            for (int o = 0; o < top_head; o++) {
-                for (int k = 0; k < bot_head; k++) {
-                    for (int y = 0; y < top_h; y++) {
-                        for (int x = 0; x < top_w; x++) {
-                            for (int p = 0; p < fil_h; p++) {
-                                for (int q = 0; q < fil_w; q++) {
-                                    int in_y = y * str_h - pad_h + p * ups_y;
-                                    int in_x = x * str_w - pad_w + q * ups_x;
-                                    if (in_y >= 0 && in_y < bot_h && in_x >= 0 && in_x < bot_w) {
-                                        int weight_offset = (o + top_head) * fil_in * fil_h * fil_w + k * fil_h * fil_w + p * fil_w + q;
-                                        int in_offset = n * bot_cst + (k + bot_head) * bot_hst + in_y * bot_wst + in_x;
-                                        int out_offset = n * top_cst + (o + top_head) * top_hst + y * top_wst + x;
-                                        top[out_offset] += bottom[in_offset] * filter[weight_offset];
-                                    }
-                                }
-                            }
-                        }
+    const int w_offset = fil_out*fil_in*fil_h*fil_w;
+    const int i_offset = in_c*in_h*in_w;
+    const int o_offset = out_c*out_h*out_w;
+
+    for (int g = 0; g < group; ++g) {
+      for (int n = 0; n < out_n; ++n) {  // TODO: batch processing
+        for (int c = 0; c < out_c; ++c) {
+          for (int h = 0; h < out_h; ++h) {
+            for (int w = 0; w < out_w; ++w) {
+              float sum = 0.0f;
+              for (int k = 0; k < in_c; ++k) {
+                for (int fh = 0; fh < fil_h; ++fh) {
+                  for (int fw = 0; fw < fil_w; fw++) {
+                    int ih = h*str_h - pad_h + fh;
+                    int iw = w*str_w - pad_w + fw;
+                    if (iw >= 0 && iw < in_w && ih >= 0 && ih < in_h) {
+                        sum += input[iw*in_wst + ih*in_hst + k*in_cst + n*in_nst] *
+                               filter[fw + fh*fil_w + k*fil_w*fil_h + c*fil_in*fil_w*fil_h];
                     }
+                  }
                 }
+              }
+              output[w*out_wst + h*out_hst + c*out_cst + n*out_nst] = sum;
             }
+          }
         }
+      }
+      filter += w_offset;
+      input  += i_offset;
+      output += o_offset;
     }
-    DEBUG(bottom);
-    DEBUG(top);
+    DEBUG(output);
+    DEBUG(input);
 }
 
