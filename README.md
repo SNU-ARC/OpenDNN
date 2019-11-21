@@ -17,7 +17,7 @@ The NVIDIA CUDA® Deep Neural Network library (cuDNN) is a GPU-accelerated libra
 ```sudo apt-get install libcudnn7-dev```
 or download it from Nvidia CuDNN installation homepage.
 
-# Structure
+# Directory Structure
 ```sh
 ├─OpenDNN
 │  │  README.md
@@ -39,9 +39,9 @@ in the `src` folder, and shared & static library will be built targeting the dev
 3. You should add the `PATH` and `LD_LIBRARY_PATH` to the current library directory, or copy it to the default library and binary paths.
 
 # Hello World!
-In `./test` folder, a small unittest for convolution is provided. You can build it by `make` and run it after setting `PATH` and `LD_LIBRARY_PATH` correctly.
+In `./test` folder, a small unit test for convolution is provided. You can build it by `make` and run it after setting `PATH` and `LD_LIBRARY_PATH` correctly.
 
 # Reference
 API descriptions and other information is available in the following thesis.
 
-[OpenDNN: An Open-source cuDNN-like Deep Learning Primitive Library](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
+Daeyeon Kim, "OpenDNN: An Open-source, cuDNN-like Deep Learning Primitive Library," M.S. Thesis, Department of Computer Science and Engineering, Seoul National University, February 2019. [Link](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
