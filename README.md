@@ -38,5 +38,8 @@ or download it on Nvidia CuDNN install homepage.
 in the `src` folder, then shared & static library will be built.
 3. You should add the `PATH` and `LD_LIBRARY_PATH` on the current library, or copy it on the default library and binary path.
 
+# Test
+In `./test` folder, a mini unittest is given. You can build by `make` and it goes work when the `PATH` and `LD_LIBRARY_PATH` correct.
+
 # Reference
 [OpenDNN: An Open-source cuDNN-like Deep Learning Primitive Library](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
