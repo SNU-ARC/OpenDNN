@@ -44,4 +44,4 @@ In `./test` folder, a small unit test for convolution is provided. You can build
 # Reference
 API descriptions and other information is available in the following thesis.
 
-Daeyeon Kim, "OpenDNN: An Open-source, cuDNN-like Deep Learning Primitive Library," M.S. Thesis, Department of Computer Science and Engineering, Seoul National University, February 2019. [Link](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
+[Daeyeon Kim, "OpenDNN: An Open-source, cuDNN-like Deep Learning Primitive Library," M.S. Thesis, Department of Computer Science and Engineering, Seoul National University, February 2019.](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
