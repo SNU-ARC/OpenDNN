@@ -16,5 +16,5 @@ GREEN=\033[1;32m
 RED=\033[1;31m
 END=\033[0m
 
-# Option for CPP and CU
-IF_CUDA:=1
+# Option for CPP and CU (Default: CPU (0))
+IF_CUDA:=0
