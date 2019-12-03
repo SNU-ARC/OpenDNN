@@ -30,6 +30,7 @@ or download it from Nvidia CuDNN installation homepage.
 │  │     unittest.cpp
 │  │     unittest.cu
 │  │     Makefile
+│  ├─lib
 │  ├─include
 │  │     opendnn.h
 │  └─src
@@ -44,13 +45,21 @@ or download it from Nvidia CuDNN installation homepage.
 1. Select the CPU or GPU version of OpenDNN by changing the `USE_CUDA` flag to 0 (CPU)/1 (GPU) in `common.mk`. (*Note*: An FPGA version is not currently open due to a licensing issue.)
 2. Enter the command
 ```make```
-in the `src` folder, and shared & static library will be built targeting the device you chose.
-3. You should add the `PATH` and `LD_LIBRARY_PATH` to the current library directory, or copy it to the default library and binary paths.
+at the root of OpenDNN folder, and shared & static library will be built targeting the device you chose.
+3. You should add the `PATH` and `LD_LIBRARY_PATH` to the current library directory ($opendnn/lib), or copy it to the default library and binary paths. (e.g. /usr/lib)
 
 # Hello World!
 In `./test` folder, a small unit test for convolution is provided. You can build it by `make` and run it after setting `PATH` and `LD_LIBRARY_PATH` correctly.
+
+# Caffe
+1. Download caffe and apply patch
+```
+cd examples
+./download\_and\_patch\_caffe.sh
+```
 
 # Reference
 API descriptions and other information is available in the following thesis.
 
 [Daeyeon Kim, "OpenDNN: An Open-source, cuDNN-like Deep Learning Primitive Library," M.S. Thesis, Department of Computer Science and Engineering, Seoul National University, February 2019.](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
+
