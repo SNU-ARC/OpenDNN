@@ -52,11 +52,25 @@ at the root of OpenDNN folder, and shared & static library will be built targeti
 In `./test` folder, a small unit test for convolution is provided. You can build it by `make` and run it after setting `PATH` and `LD_LIBRARY_PATH` correctly.
 
 # Caffe
-1. Download caffe and apply patch
+1. Install opendnn into ```/usr/lib```. **Please check USE_CUDA option in ```common.mk``` is 1.** And the following instruction will copy opendnn library files into ```/usr/lib/``` which means from now on if you apply some changes on source codes and build them, you should update the file ```/usr/lib/libopendnn.so```.
+```
+make install
+```
+2. Download Caffe and apply patch.
 ```
 cd examples
-./download\_and\_patch\_caffe.sh
+./download_and_patch_caffe.sh
 ```
+3. You can now check the difference between original source codes and our patch.
+```
+cd caffe
+git diff
+```
+4. Enable the cuDNN usage option in Caffe configuration file. (Makefile.config.example) We only tested our example with CUDA 9.0 and cuDNN 7.1.4. **Please make sure that ```USE_CUDNN``` must be set to 1 in Makefile.config.example**.
+
+5. Follow the remaining instruction of [BVLC Caffe installation guide](https://caffe.berkeleyvision.org/install_apt.html)
+
+6. Now you have built the openDNN port of Caffe. We recommend lenet with MNIST dataset for test. Please follow intructions of [```caffe/examples/mnist/README.md```](https://github.com/BVLC/caffe/blob/master/examples/mnist/readme.md).
 
 # Reference
 API descriptions and other information is available in the following thesis.
