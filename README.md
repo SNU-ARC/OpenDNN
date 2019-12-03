@@ -62,13 +62,13 @@ make install
 cd examples
 ./download_and_patch_caffe.sh
 ```
-3. You can now check the difference between original source codes and our patch.
+3. You can now check the difference between original source codes and our patch. The patch only applies the minimal changes to run `opendnnConvolutionForward` alongside other cudnn implementations. For example, backward convolution operations are performed with cuDNN.
 ```
 cd caffe
 git diff
 ```
-The patch only applies the minimal changes to run `opendnnConvolutionForward` alongside other cudnn implementations. Backward operations can just performed with cuDNN.
-4. Enable the cuDNN usage option in Caffe configuration file. (Makefile.config.example) We only tested our example with CUDA 9.0 and cuDNN 7.1.4. **Please make sure that ```USE_CUDNN``` must be set to 1 in Makefile.config.example**.
+
+4. Enable the cuDNN usage option in Caffe configuration file. (Makefile.config.example) We only tested our example with CUDA 10.0 and cuDNN 7.1.4. **Please make sure that ```USE_CUDNN``` must be set to 1 in Makefile.config.example**.
 
 5. Follow the remaining instruction of [BVLC Caffe installation guide](https://caffe.berkeleyvision.org/install_apt.html)
 

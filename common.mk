@@ -16,4 +16,4 @@ RED=\033[1;31m
 END=\033[0m
 
 # Option for CPP and CU (Default: CPU (0))
-USE_CUDA:=1
+USE_CUDA:=0
