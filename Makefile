@@ -8,6 +8,7 @@ LIB:=lib
 all: libopendnn
 
 libopendnn: clean
+	@mkdir -p lib
 	@echo USE_CUDA = $(USE_CUDA)
 	$(MAKE) -C $(SRC) $@.so; cp $(SRC)/$@.so lib
 	@echo "libopendnn.so is built successfully"

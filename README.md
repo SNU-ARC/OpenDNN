@@ -26,6 +26,10 @@ or download it from Nvidia CuDNN installation homepage.
 │  │     download_and_patch_caffe.sh
 │  │     Makefile.config
 │  │     opendnn-to-caffe.patch
+│  ├─test
+│  │     unittest.cpp
+│  │     unittest.cu
+│  │     Makefile
 │  ├─include
 │  │     opendnn.h
 │  └─src
@@ -37,8 +41,8 @@ or download it from Nvidia CuDNN installation homepage.
 ```
 
 # Installation
-1. You select the CPU or GPU version of OpenDNN by changing the `USE_CUDA` flag to 0 (CPU)/1 (GPU) in `common.mk`. (*Note*: An FPGA version is not currently open due to a licensing issue.)
-2. You enter the command
+1. Select the CPU or GPU version of OpenDNN by changing the `USE_CUDA` flag to 0 (CPU)/1 (GPU) in `common.mk`. (*Note*: An FPGA version is not currently open due to a licensing issue.)
+2. Enter the command
 ```make```
 in the `src` folder, and shared & static library will be built targeting the device you chose.
 3. You should add the `PATH` and `LD_LIBRARY_PATH` to the current library directory, or copy it to the default library and binary paths.
