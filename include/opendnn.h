@@ -2,22 +2,9 @@
 #define openDNN_H_
 
 #include <string>
-#ifdef IF_CUDA
+#ifdef USE_CUDA
 #include <cuda.h>
 #include <cudnn.h>
-#endif
-
-// ======================================================================
-//
-#define DEBUG_DATA_CNT 8
-// #define __OPENDNN_DEBUG__
-
-#ifdef __OPENDNN_DEBUG__
-  #define stdform std::cerr << std::setw(12)
-  #define DEBUG(_data) for(int i=0; i<DEBUG_DATA_CNT; i++) stdform << _data[i] << " "; \
-    std::cerr << std::endl
-#else
-  #define DEBUG(_data)
 #endif
 
 struct opendnnContext;
@@ -100,7 +87,8 @@ typedef struct opendnnNormStruct {
 
 // OpenDNN API
 void opendnnCreate (opendnnHandle_t*);
-#ifdef IF_CUDA
+void opendnnDestroy (opendnnHandle_t);
+#ifdef USE_CUDA
 void opendnnSetStream (CUstream);
 #endif
 
@@ -139,7 +127,7 @@ void opendnnSetPooling2dDescriptor (opendnnPoolingDescriptor_t, opendnnPoolingMo
 void opendnnGetPooling2dDescriptor (opendnnPoolingDescriptor_t, opendnnPoolingMode_t*, int*, int*, int*, int*, int*, int*);
 
 // Activation
-// TODO: ReLU is default, thus we don't use these API now. Fix this for portability
+// TODO: Just ReLU is default. Fix this for portability.
 // void opendnnCreateActivationDescriptor (opendnnActivationDescriptor_t*);
 // void opendnnSetActivationDesc (opendnnActivationDescriptor_t, double, opendnnActivationMode_t);
 // void opendnnGetActivationDesc (opendnnActivationDescriptor_t, double, opendnnActivationMode_t);
@@ -168,11 +156,6 @@ void opendnnConvolutionForward (opendnnHandle_t,
                                 const opendnnFilterDescriptor_t, const float*,
                                 const opendnnConvolutionDescriptor_t, float*, size_t,
                                 const opendnnTensorDescriptor_t, float*);
-// void opendnnConvolutionForward_cu (cudnnHandle_t,
-//                                 const cudnnTensorDescriptor_t, const float*,
-//                                 const cudnnFilterDescriptor_t, const float*,
-//                                 const cudnnConvolutionDescriptor_t, float*, size_t,
-//                                 const cudnnTensorDescriptor_t, float*, const std::string name);
 // void opendnnPoolingForward (opendnnHandle_t, opendnnPoolingDescriptor_t,
 //                             opendnnTensorDescriptor_t, const Dtype*,
 //                             opendnnTensorDescriptor_t, Dtype*);

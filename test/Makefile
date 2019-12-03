@@ -1,13 +1,14 @@
 include ../common.mk
   
 # Generating shared & static library for CUDA
-ifeq ($(IF_CUDA), 1)
+ifeq ($(USE_CUDA), 1)
 all:
-	echo $(IF_CUDA)
-	$(NVCC) unittest.cpp -L../src -lopendnn -I../include -o unittest.exe
+	@echo "CUDA is activated"
+	$(NVCC) unittest.cu -L../lib -lopendnn -I../include -o unittest_gpu.exe
 else
 all:
-	$(GXX)  unittest.cpp -L../src -lopendnn -I../include -o unittest.exe
+	@echo "CUDA is not activated"
+	$(GXX)  unittest.cpp -L../lib -lopendnn -I../include -o unittest_cpu.exe
 endif
 
 clean:

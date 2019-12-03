@@ -3,12 +3,11 @@ GXX:=g++
 CUDA_ARCH:= -gencode arch=compute_61,code=sm_61 \
             -gencode arch=compute_52,code=sm_52
             # -gencode arch=compute_70,code=sm_70
-CFLAGS:=-O3 $(CUDA_ARCH)
 
 CUDA_PATH:=/usr/local/cuda
 
-# Silence all verbose messages
-SILENCE=@
+# Mute all verbose messages
+MUTE=@
 MAKE:=@$(MAKE) --no-print-directory
 MAKEVERBOSE:=make
 
@@ -17,4 +16,4 @@ RED=\033[1;31m
 END=\033[0m
 
 # Option for CPP and CU (Default: CPU (0))
-IF_CUDA:=0
+USE_CUDA:=1

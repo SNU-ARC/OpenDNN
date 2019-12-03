@@ -34,23 +34,41 @@ int main () {
   const float b[16] = {1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4};
   const float f[4] = {1,0,0,1};
   float t[9] = {0,};
- 
-  // For CPU version, workspace is not needed
-  size_t size_in_bytes = 0;
-  float* workspace = NULL;
+
+  // GPU device memory allocation and init
+  float *b_dev, *f_dev, *t_dev = NULL;
+  cudaMalloc(&b_dev, sizeof(float)*n*c*h*w);
+  cudaMalloc(&f_dev, sizeof(float)*oc*c*kh*kw);
+  cudaMalloc(&t_dev, sizeof(float)*n*oc*oh*ow);
+  cudaMemcpy(b_dev, b, sizeof(float)*n*c*h*w, cudaMemcpyHostToDevice);
+  cudaMemcpy(f_dev, f, sizeof(float)*oc*c*kh*kw, cudaMemcpyHostToDevice);
+  cudaMemcpy(t_dev, t, sizeof(float)*n*oc*oh*ow, cudaMemcpyHostToDevice);
+  
+  // For now, workspace is needed to save im2col transposed input tensor
+  // opendnnGetConvolutionForwardWorkspaceSize returns just n*oc*kh*kw*oh*ow*sizeof(float)
+  size_t size_in_bytes;
+  float* workspace;
+  opendnnGetConvolutionForwardWorkspaceSize(handle,
+                                            input_desc,
+                                            filter_desc, conv_desc,
+                                            output_desc, &size_in_bytes);
+  cudaMalloc(&workspace, size_in_bytes);
 
   // Perform convolution
   opendnnConvolutionForward(handle,
-     input_desc, b,
-     filter_desc, f, conv_desc,
+     input_desc, b_dev,
+     filter_desc, f_dev, conv_desc,
      workspace, size_in_bytes,
-     output_desc, t
+     output_desc, t_dev
   );
+
+  // Get results
+  cudaMemcpy(t, t_dev, sizeof(float)*n*oc*oh*ow, cudaMemcpyDeviceToHost);
 
   for (int i = 0; i < 9; i++) {
     cout << t[i] << '\n';
   }
   cout << "Done" << endl;
-  cout << "If output is all zero, check libopendnn is correctly built with USE_CUDA=0 option in common.mk" << endl;
+  opendnnDestroy(handle);
   return 0;
 }
