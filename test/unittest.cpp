@@ -52,5 +52,6 @@ int main () {
   }
   cout << "Done" << endl;
   cout << "If output is all zero, check libopendnn is correctly built with USE_CUDA=0 option in common.mk" << endl;
+  cout << "Or you should check LD_LIBRARY_PATH includes the CPU version of libopendnn.so" << endl;
   return 0;
 }

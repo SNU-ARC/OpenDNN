@@ -74,18 +74,28 @@ git diff
 
 6. Now you have built the OpenDNN port of Caffe. We recommend lenet with MNIST dataset for test. Please follow intructions of [```caffe/examples/mnist/README.md```](https://github.com/BVLC/caffe/blob/master/examples/mnist/readme.md).
 
-## TensorFlow 1.4.1
-We provide an unofficial OpenDNN patch for TensorFlow 1.4.1. Building TF from source code is a long way and the version is outdated already. Thus, we just log a patch and do not guarantee the success of OpenDNN integration. But, you can refer it and try the similar way of Caffe with TensorFlow. (Turn on CUDNN)
+## TensorFlow 1.4.1 (Experimental)
+We provide an experimental OpenDNN patch for TensorFlow 1.4.1. Building TensorFlow from a source code is a long way and the version is outdated already. But, we just log a patch and hope to be helpful for someone. Several original cuDNN implementation with optimization (e.g. Autotuning of cuDNN algorithmic selection) is just discarded for portability. You can refer it as a baseline and try the similar way of Caffe for up-to-date TensorFlow. (Note that you should turn on cuDNN for this patch.)
+
+0. Install OpenDNN. (As you did with Caffe. Keep this file (`/usr/lib/libopendnn.so`) to be up-to-date, when you change source codes of OpenDNN.)
 ```
+make install
+```
+
+1. Clone v1.4.1 and apply patch
+```
+cd examples
 git clone https://github.com/tesorflow/tensorflow
 cd tensorflow
 git checkout v1.4.1
-cp ../tensorflow-1.4.1-unofficial-patch .
+cp -rf ../tensorflow-1.4.1-unofficial-patch .
 cd tensorflow-1.4.1-unofficial-patch
 ./patch.sh
 cd ../
 git diff
 ```
+
+2. Please follow the instruction of [TensorFlow 1.x build from source](https://www.tensorflow.org/install/source)
 
 # Reference
 API descriptions and other information is available in the following thesis.

@@ -156,7 +156,6 @@ void opendnnAddTensor (opendnnHandle_t handle,
     opendnnGetTensor4dDescriptor (output_desc, &out_n, &out_c, &out_h, &out_w,
         &out_nst, &out_cst, &out_hst, &out_wst);
 
-    DEBUG(output_data);
     for (int i = 0; i < out_n; ++i) {
       for (int j = 0; j < out_c; ++j) {
         for (int k = 0; k < out_h; ++k) {
@@ -173,7 +172,6 @@ void opendnnAddTensor (opendnnHandle_t handle,
         }
       }
     }
-    DEBUG(output_data);
 }
 
 void opendnnConvolutionForward (opendnnHandle_t handle,
@@ -229,7 +227,5 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
       input  += i_offset;
       output += o_offset;
     }
-    DEBUG(output);
-    DEBUG(input);
 }
 
