@@ -1,6 +1,10 @@
-#include <opendnn.h>
+// #ifdef OpenCL
+#include <CL/opencl.h>
+// #endif
 #include <iostream>
 #include <cstring>
+
+#include <opendnn.h>
 
 using namespace std;
 
@@ -31,10 +35,10 @@ int main () {
                                                /*str_h=*/1,/*str_w=*/1,
                                                /*dir_h=*/0,/*dir_w=*/0);
   opendnnSetConvolutionGroupCount(conv_desc, ngroup); 
-  const float b[16] = {1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4};
-  const float f[4] = {1,0,0,1};
+  float b[16] = {1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4};
+  float f[4] = {1,0,0,1};
   float t[9] = {0,};
- 
+
   // For CPU version, workspace is not needed
   size_t size_in_bytes = 0;
   float* workspace = NULL;
@@ -51,7 +55,7 @@ int main () {
     cout << t[i] << '\n';
   }
   cout << "Done" << endl;
-  cout << "If output is all zero, check libopendnn is correctly built with USE_CUDA=0 option in common.mk" << endl;
-  cout << "Or you should check LD_LIBRARY_PATH includes the CPU version of libopendnn.so" << endl;
+  cout << "If output is all zero, check libopendnn is correctly built with TARGET option in common.mk" << endl;
+  cout << "Or you should check LD_LIBRARY_PATH directs the right version of libopendnn.so" << endl;
   return 0;
 }

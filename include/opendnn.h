@@ -1,20 +1,21 @@
 #ifndef openDNN_H_
 #define openDNN_H_
 
-#include <string>
 #ifdef USE_CUDA
 #include <cuda.h>
-#include <cudnn.h>
 #endif
+#include<string.h>
 
 struct opendnnContext;
+
 typedef struct opendnnContext* opendnnHandle_t;
 
-// typedef enum {
-//     SIGMOID,
-//     RELU,
-//     TANH
-// } opendnnActivationMode_t;
+typedef enum {
+    OPENDNN_ACTIVATION_SIGMOID,
+    OPENDNN_ACTIVATION_RELU,
+    OPENDNN_ACTIVATION_TANH,
+//     OPENDNN_ACTIVATION_CLIPPED_RELU,
+} opendnnActivationMode_t;
 
 typedef enum {
     POOLING_MAX,
@@ -38,6 +39,8 @@ typedef struct opendnnTensorStruct {
     int height_;
     int width_;
 
+    int count;
+
     int stride_n;
     int stride_c;
     int stride_h;
@@ -49,6 +52,8 @@ typedef struct opendnnFilterStruct {
     int input_;
     int height_;
     int width_;
+
+    int count;
 } *opendnnFilterDescriptor_t;
 
 typedef struct opendnnConvolutionStruct {
@@ -61,10 +66,10 @@ typedef struct opendnnConvolutionStruct {
     int group;
 } *opendnnConvolutionDescriptor_t;
 
-// typedef struct activation {
-//     double relu_ceiling;
-//     opendnnActivationMode_t activation_mode;
-// } *opendnnActivationDescriptor_t;
+typedef struct opendnnActivationStruct {
+    // double relu_ceiling;
+    opendnnActivationMode_t activation_mode;
+} *opendnnActivationDescriptor_t;
 
 typedef struct opendnnPoolingStruct {
     opendnnPoolingMode_t pooling_mode;
@@ -97,6 +102,8 @@ void opendnnCreateTensorDescriptor (opendnnTensorDescriptor_t*);
 void opendnnSetTensor4dDescriptorEx (opendnnTensorDescriptor_t, int, int, int, int, int, int, int, int);
 void opendnnSetTensor4dDescriptor (opendnnTensorDescriptor_t, int, int, int, int);
 void opendnnGetTensor4dDescriptor (opendnnTensorDescriptor_t, int*, int*, int*, int*, int*, int*, int*, int*);
+void opendnnSetTensor2dDescriptor (opendnnTensorDescriptor_t, int, int);
+void opendnnGetTensor2dDescriptor (opendnnTensorDescriptor_t, int*, int*, int*, int*);
 
 // Filter
 void opendnnCreateFilterDescriptor (opendnnFilterDescriptor_t*);
@@ -140,7 +147,7 @@ void opendnnGetNormDescriptor (opendnnNormDescriptor_t, int*, double*, double*, 
 
 // Softmax
 // TODO: Softmax is not implemented now
-// void opendnnSoftmaxForward (opendnnTensor, const Dtype*, OpenTensor, Dtype*);
+// void opendnnSoftmaxForward (opendnnTensor, const float*, OpenTensor, float*);
 
 // InnerProduct (FC)
 // TODO: There are no InnerProduct methods in cuDNN but with OpenDNN?
@@ -156,12 +163,12 @@ void opendnnConvolutionForward (opendnnHandle_t,
                                 const opendnnFilterDescriptor_t, const float*,
                                 const opendnnConvolutionDescriptor_t, float*, size_t,
                                 const opendnnTensorDescriptor_t, float*);
-// void opendnnPoolingForward (opendnnHandle_t, opendnnPoolingDescriptor_t,
-//                             opendnnTensorDescriptor_t, const Dtype*,
-//                             opendnnTensorDescriptor_t, Dtype*);
-// void opendnnNormForward (opendnnHandle_t, opendnnNormDescriptor_t,
-//                          opendnnTensorDescriptor_t, const Dtype*,
-//                          opendnnTensorDescriptor_t, Dtype*);
+void opendnnPoolingForward (opendnnHandle_t, opendnnPoolingDescriptor_t,
+                            opendnnTensorDescriptor_t, float*,
+                            opendnnTensorDescriptor_t, float*);
+void opendnnNormForward (opendnnHandle_t, opendnnNormDescriptor_t,
+                         opendnnTensorDescriptor_t, const float*,
+                         opendnnTensorDescriptor_t, float*);
 void opendnnInnerProductForward(opendnnHandle_t handle,
     opendnnTensorDescriptor_t input_desc, bool TransA, float* input,
     opendnnTensorDescriptor_t weight_desc, bool TransB, float* weight,

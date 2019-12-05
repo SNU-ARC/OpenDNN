@@ -474,10 +474,10 @@ void opendnnAddTensor (opendnnHandle_t handle,
 }
 
 void opendnnConvolutionForward (opendnnHandle_t handle,
-  opendnnTensorDescriptor_t input_desc, float* input,
-  opendnnFilterDescriptor_t filter_desc, float* filter,
-  opendnnConvolutionDescriptor_t conv_desc, float* workspace, size_t size_in_bytes,
-  opendnnTensorDescriptor_t output_desc, float* output) {
+  const opendnnTensorDescriptor_t input_desc, const float* input_cst,
+  const opendnnFilterDescriptor_t filter_desc, const float* filter_cst,
+  const opendnnConvolutionDescriptor_t conv_desc, float* workspace, size_t size_in_bytes,
+  const opendnnTensorDescriptor_t output_desc, float* output) {
     int in_n, in_c, in_h, in_w, in_nst, in_cst, in_hst, in_wst;
     int out_n, out_c, out_h, out_w, out_nst, out_cst, out_hst, out_wst;
     int pad_h, pad_w, str_h, str_w, ups_x, ups_y;
@@ -490,6 +490,8 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
     opendnnGetFilter4dDescriptor (filter_desc, &fil_out, &fil_in, &fil_h, &fil_w);
     opendnnGetConvolution2dDescriptor (conv_desc, &pad_h, &pad_w, &str_h, &str_w, &ups_x, &ups_y);
     opendnnGetConvolutionGroupCount(conv_desc, &group);
+    float* input = (float*) input_cst;
+    float* filter = (float*) filter_cst;
 
     // cout << "Group: " << group << '\n';
     // Retrieve OpenCL context
@@ -552,7 +554,7 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
             0, sizeof(float)*n*col_cnt_in_batch, sizeof(float)*col_cnt_in_batch);
     }
     q->finish();
-    double start = get_time();
+    // double start = get_time();
     int fil_out_ = fil_out / group;
     int fil_in_  = fil_in / group;
     int in_c_   = in_c / group;
@@ -620,8 +622,8 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
         // cout << "post: " << check << endl;
     }
     q->finish();
-    double end = get_time();
-    cerr << end-start << '\n';
+    // double end = get_time();
+    // cerr << end-start << '\n';
 }
 
 

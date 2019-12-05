@@ -1,15 +1,26 @@
 include ../common.mk
-  
-# Generating shared & static library for CUDA
-ifeq ($(USE_CUDA), 1)
-all:
-	@echo "CUDA is activated"
-	$(NVCC) unittest.cu -L../lib -lopendnn -I../include -o unittest_gpu.exe
+
+ifeq ($(TARGET), cuda)
+BIN=unittest_gpu.exe
+else ifeq ($(TARGET), ocl)
+BIN=unittest_ocl.exe
 else
-all:
-	@echo "CUDA is not activated"
-	$(GXX)  unittest.cpp -L../lib -lopendnn -I../include -o unittest_cpu.exe
+BIN=unittest_cpu.exe
 endif
+
+all: $(BIN)
+
+unittest_gpu.exe: unittest.cu
+	@echo "TARGET: GPU-CUDA"
+	$(NVCC) $< -L../lib -lopendnn -I../include -o $@
+
+unittest_ocl.exe: unittest.cpp
+	@echo "TARGET: OpenCL"
+	$(GXX) $< -L../lib -lopendnn -I../include -o $@ -DOpenCL
+
+unittest_cpu.exe: unittest.cpp
+	@echo "TARGET: Sequential CPU"
+	$(GXX) $< -L../lib -lopendnn -I../include -o $@
 
 clean:
 	rm -rf *.exe *.o
