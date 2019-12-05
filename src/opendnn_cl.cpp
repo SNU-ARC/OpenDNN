@@ -56,11 +56,8 @@ void opendnnCreate (opendnnHandle_t* handle) {
     (*handle)->context = context;
 
     (*handle)->cmdq = new cl::CommandQueue(context, device);
-    // TODO: create program in handler?
-    // (*handle)->program = new cl::Program(
-    //     context, (*handle)->devices, xcl::import_binary_file("kernel.xclbin"));
     // Read source file
-    std::ifstream sourceFile("/usr/local/cuda/lib64/opendnn_kernel.cl");
+    std::ifstream sourceFile("/usr/lib/opendnn_kernel.cl");
     std::string sourceCode(std::istreambuf_iterator<char>{sourceFile}, {});
     cl::Program::Sources sources(1, std::make_pair(sourceCode.c_str(), sourceCode.size()+1));
 
@@ -493,7 +490,6 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
     float* input = (float*) input_cst;
     float* filter = (float*) filter_cst;
 
-    // cout << "Group: " << group << '\n';
     // Retrieve OpenCL context
     cl::Context context = handle->context;
     cl::CommandQueue* q = handle->cmdq;

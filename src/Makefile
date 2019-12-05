@@ -11,29 +11,28 @@ all: libopendnn.so
 	@echo "export PATH:=/path/to/include"
 	@echo "export LD_LIBRARY_PATH:=/path/to/lib(.so)"
 
-# Generating shared & static library for CUDA
+# Generating shared library for CUDA
 ifeq ($(TARGET), cuda)
 CFLAGS+=$(CUDA_ARCH)
 libopendnn.so: opendnn.cu  opendnn_kernel.cuh
 	$(MUTE) $(NVCC) -shared $< -o $@ -Xcompiler -fPIC $(CFLAGS) $(LDFLAGS) -DUSE_CUDA
-# opendnn.o: opendnn.cu  opendnn_kernel.cuh
-# 	$(MUTE) $(NVCC) -dc $< -o $@ $(CFLAGS) $(LDFLAGS) -DUSE_CUDA
+	@cp $@ ../lib
 
-
-# Generating shared & static library for OpenCL
+# Generating shared library for OpenCL
 else ifeq ($(TARGET), ocl)
-# libopendnn.so: opendnn_cl.c
-# 	$(MUTE) gcc -shared $< -o $@ -fPIC -lOpenCL -lstdc++ $(CFLAGS) $(LDFLAGS)
+LDFLAGS+=-lOpenCL
+CFLAGS+=-std=c++11
 libopendnn.so: opendnn_cl.cpp
-	$(MUTE) $(GXX) -std=c++11 -shared $< -o $@ -fPIC -lOpenCL $(CFLAGS) $(LDFLAGS)
+	$(MUTE) $(GXX) -shared $< -o $@ -fPIC $(CFLAGS) $(LDFLAGS)
+	@cp $@ opendnn_kernel.cl ../lib
 
-
-# Generating shared & static library for CPP
+# Generating shared library for CPP
 else
+
 libopendnn.so: opendnn.cpp
 	$(MUTE) $(GXX) -shared $< -o $@ -fPIC $(CFLAGS) $(LDFLAGS)
-# opendnn.o: opendnn.cpp
-# 	$(MUTE) $(GXX) -c opendnn.cpp -o $@ $(CFLAGS) $(LDFLAGS)
+	@cp $@ ../lib
+
 endif
 
 clean:
