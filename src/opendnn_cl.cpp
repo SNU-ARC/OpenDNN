@@ -470,6 +470,23 @@ void opendnnAddTensor (opendnnHandle_t handle,
     }
 }
 
+void opendnnGetConvolutionForwardWorkspaceSize (opendnnHandle_t handle,
+                                                opendnnTensorDescriptor_t bottom_desc,
+                                                opendnnFilterDescriptor_t filter_desc,
+                                                opendnnConvolutionDescriptor_t conv_desc,
+                                                opendnnTensorDescriptor_t top_desc, size_t* size_in_bytes){
+    int bot_n, bot_c, bot_h, bot_w, bot_nst, bot_cst, bot_hst, bot_wst;
+    int top_n, top_c, top_h, top_w, top_nst, top_cst, top_hst, top_wst;
+    int fil_out, fil_in, fil_h, fil_w;
+    opendnnGetTensor4dDescriptor (bottom_desc, &bot_n, &bot_c, &bot_h, &bot_w,
+        &bot_nst, &bot_cst, &bot_hst, &bot_wst);
+    opendnnGetTensor4dDescriptor (top_desc, &top_n, &top_c, &top_h, &top_w,
+        &top_nst, &top_cst, &top_hst, &top_wst);
+    opendnnGetFilter4dDescriptor (filter_desc, &fil_out, &fil_in, &fil_h, &fil_w);
+
+    *size_in_bytes = bot_n*top_h*top_w*bot_c*fil_h*fil_w*sizeof(float);
+}
+
 void opendnnConvolutionForward (opendnnHandle_t handle,
   const opendnnTensorDescriptor_t input_desc, const float* input_cst,
   const opendnnFilterDescriptor_t filter_desc, const float* filter_cst,
@@ -501,10 +518,9 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
 
     // im2col
     size_t col_cnt_in_batch = out_h*out_w*in_c*fil_h*fil_w;
-    size_t col_cnt = in_n*col_cnt_in_batch;
     float *col_buf;
-    col_buf = (float*) malloc(sizeof(float)*col_cnt);
-    cl::Buffer col_buf_device(context, CL_MEM_READ_WRITE, sizeof(float)*col_cnt);
+    col_buf = (float*) malloc(sizeof(float)*out_n*col_cnt_in_batch);
+    cl::Buffer col_buf_device(context, CL_MEM_READ_WRITE, sizeof(float)*out_n*col_cnt_in_batch);
 
     for (int n = 0; n < in_n; ++n) {
         float* input_in_batch = input + n*in_nst;

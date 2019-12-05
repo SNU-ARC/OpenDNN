@@ -9,15 +9,15 @@ all: libopendnn
 
 libopendnn: clean
 	@mkdir -p lib
-	@echo TARGET = $(TARGET)
-	$(MAKE) -C $(SRC) $@.so; cp $(SRC)/$@.so lib
+	@echo "TARGET: $(TARGET)"
+	$(MAKE) -C $(SRC) $@.so
 	$(MAKE) -C test
 	@echo "libopendnn.so is built successfully"
-	@echo "====================================="
-	@echo "openDNN is built sucessfully !"
-	@echo "Use following commands to set the path"
-	@echo "export PATH:=/path/to/include"
-	@echo "export LD_LIBRARY_PATH:=/path/to/lib(.so)"
+	@echo "=====================================\\n"
+	@echo "Use following commands to set the path or"
+	@echo "run make install for copying to system path\\n"
+	@echo "export PATH:=/path/to/include/opendnn.h"
+	@echo "export LD_LIBRARY_PATH:=/path/to/libopendnn.so"
 
 install: libopendnn
 	@echo "\n====================================="

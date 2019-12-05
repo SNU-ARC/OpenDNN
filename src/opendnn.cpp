@@ -21,6 +21,10 @@ void opendnnCreate (opendnnHandle_t* handle) {
     *handle = new opendnnContext;
 }
 
+void opendnnDestroy (opendnnHandle_t handle){
+    delete handle;
+}
+
 // Tensor management
 void opendnnCreateTensorDescriptor (opendnnTensorDescriptor_t* tensor_desc) {
     *tensor_desc = new opendnnTensorStruct;
