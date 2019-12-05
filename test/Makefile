@@ -16,7 +16,7 @@ unittest_gpu.exe: unittest.cu
 
 unittest_ocl.exe: unittest.cpp
 	@echo "TARGET: OpenCL"
-	$(GXX) $< -L../lib -lopendnn -I../include -o $@ -DOpenCL
+	$(GXX) $< -L../lib -lopendnn -I../include -o $@
 
 unittest_cpu.exe: unittest.cpp
 	@echo "TARGET: Sequential CPU"
