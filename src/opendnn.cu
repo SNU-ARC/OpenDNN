@@ -323,8 +323,6 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
         const int M = top_c_;
         const int N = top_h*top_w;
         const int K = bot_c_*fil_h*fil_w;
-        // const float alpha = 1.0f;
-        // const float beta = 0.0f;
         const int weight_offset = fil_out_*fil_in_*fil_h*fil_w;
         const int col_offset = bot_c_*fil_h*fil_w*top_h*top_w;
         const int output_offset = top_c_*top_h*top_w;
