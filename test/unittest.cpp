@@ -1,6 +1,3 @@
-// #ifdef OpenCL
-#include <CL/opencl.h>
-// #endif
 #include <iostream>
 #include <cstring>
 
@@ -55,7 +52,7 @@ int main () {
     cout << t[i] << '\n';
   }
   cout << "Done" << endl;
-  cout << "If output is all zero, check libopendnn is correctly built with TARGET option in common.mk" << endl;
+  cout << "If outputs are all zero, check libopendnn is correctly built with a TARGET option in common.mk" << endl;
   cout << "Or you should check LD_LIBRARY_PATH directs the right version of libopendnn.so" << endl;
   return 0;
 }
