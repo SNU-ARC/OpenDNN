@@ -1,10 +1,10 @@
 # OpenDNN
 
 OpenDNN is an open-source, cuDNN-like deep learning primitive library to support various framework and hardware architectures such as CPU, GPU, FPGA, and so on.
-OpenDNN is implemented using CUDA and OpenCL and ported on popular DNN frameworks (Caffe, Tensorflow).
+OpenDNN is implemented using CUDA and OpenCL and ported on popular DNN frameworks (Caffe and Tensorflow).
 ![OpenDNN Structure](/static/opendnn.png)
 
-# Requirements for GPU
+# Requirements
 ## Nvidia Driver
 If you use an Nvidia GPU to run OpendNN, you should download Nvidia drivers first. You can download it on the Nvidia homepage and check the installation by the following command:
 ```nvidia-smi```
@@ -12,29 +12,34 @@ If you use an Nvidia GPU to run OpendNN, you should download Nvidia drivers firs
 CUDA (Compute Unified Device Architecture) is a GPU-based parallel computing platform and application programming interface (API) created by Nvidia. You can install it using:
 ```sudo apt-get install cuda-10-0```
 or download it from the Nvidia CUDA Driver homepage.
-## CuDNN
+## cuDNN
 The NVIDIA CUDA® Deep Neural Network library (cuDNN) is a GPU-accelerated library of primitives for deep neural networks. cuDNN provides highly tuned implementations for standard routines such as forward and backward convolution, pooling, normalization, and activation layers. You can install it using the command:
 ```sudo apt-get install libcudnn7-dev```
-or download it from Nvidia CuDNN installation homepage.
+or download it from Nvidia CuDNN installation homepage. (We used v7.1.4 for tests) OpenDNN does not have dependency to cuDNN but, [Caffe example](#framework-integration-examples) has.
+## OpenCL
+We used OpenCL with C++ bindings (c++11 standards). Although OpenCL itself has no dependency to a specific OpenCL-supported device, we tested it on Nvidia GPU (Titan Xp)
 
 # Directory Structure
 ```sh
 ├─OpenDNN
 │  │  README.md
-│  │  common.mk
+│  │  common.mk        # A common source that speficies a compile target (cpu, cuda, ocl)
 │  ├─examples
 │  │     download_and_patch_caffe.sh
 │  │     Makefile.config
 │  │     opendnn-to-caffe.patch
+│  │     opendnn-to-caffe-ocl.patch
 │  ├─test
-│  │     unittest.cpp
-│  │     unittest.cu
+│  │     unittest.cpp  # Unit tests for CPU and OpenCL
+│  │     unittest.cu   # CUDA
 │  │     Makefile
 │  ├─lib
 │  ├─include
 │  │     opendnn.h
 │  └─src
 │     │  opendnn.cpp
+│     │  opendnn_cl.cpp
+│     │  opendnn_kernel.cl
 │     │  opendnn.cu
 │     │  opendnn_kernel.cuh
 │     │  Makefile
@@ -42,27 +47,34 @@ or download it from Nvidia CuDNN installation homepage.
 ```
 
 # Installation
-1. Select the CPU or GPU version of OpenDNN by changing the `USE_CUDA` flag to 0 (CPU)/1 (GPU) in `common.mk`. (*Note*: An FPGA version is not currently open due to a licensing issue.)
+1. Select the CPU / GPU(CUDA) / OpenCL version of OpenDNN by changing the `TARGET` option to cpu / cuda / ocl, respectively, in `common.mk`. (*Note*: An FPGA version is not currently open due to a licensing issue.)
 2. Enter the command
 ```make```
-at the root of OpenDNN folder, and shared & static library will be built targeting the device you chose.
-3. You should add the `PATH` and `LD_LIBRARY_PATH` to the current library directory ($opendnn/lib), or copy it to the default library and binary paths. (e.g. /usr/lib)
+at the root of OpenDNN folder, and shared library will be built targeting the device you chose.
+3. You should add the `LD_LIBRARY_PATH` to the current library directory ($opendnn/lib), or copy it to the system library and header path. (e.g. /usr/lib, /usr/include, etc.)
 
 # Hello World!
-In `./test` folder, a small unit test for convolution is provided. You can build it by `make` and run it after setting `PATH` and `LD_LIBRARY_PATH` correctly.
+In `test` folder, a small unit test for convolution is provided. You can build it by `make` and run it after setting `LD_LIBRARY_PATH` correctly.
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$opendnn_root/lib
+cd test
+./unittest_xxx.exe
+```
 
 # Framework integration examples
+We provide Caffe and TensorFlow (Experimental) integration with OpenDNN. For brevity, we replace cuDNN convolution forward layer into OpenDNN which is compatible with all three supported cases. (`cpu / cuda / ocl`)
+
 ## Caffe
-1. Install OpenDNN into ```/usr/lib```. **Please check USE_CUDA option in ```common.mk``` is 1.** And the following instruction will copy OpenDNN library files into ```/usr/lib/``` which means from now on if you apply some changes on source codes and build them, you should update the file ```/usr/lib/libopendnn.so```.
+1. Install OpenDNN into ```/usr/lib```. **Please check the TARGET option in ```common.mk```.** And the following instruction will copy OpenDNN library files into ```/usr/lib/``` which means from now on if you apply some changes on source codes and build them, you should also update the file ```/usr/lib/libopendnn.so``` after build. To do that, just type this.
 ```
 make install
 ```
-2. Download Caffe and apply patch.
+2. Download Caffe and apply patch. You should specify corresponding `$target` which is consistent with TARGET option in `common.mk`. (You can replace `$target` into `cpu / cuda / ocl`)
 ```
 cd examples
-./download_and_patch_caffe.sh
+./download_and_patch_caffe.sh $target
 ```
-3. You can now check the difference between original source codes and our patch. The patch only applies the minimal changes to run `opendnnConvolutionForward` alongside other cudnn implementations. For example, backward convolution operations are performed with cuDNN.
+3. You can now check the difference between original Caffe codes and our patch. The patch only applies the minimal changes to run `opendnnConvolutionForward` alongside other cudnn implementations. For example, backward convolution operations are still performed with cuDNN.
 ```
 cd caffe
 git diff
@@ -74,8 +86,13 @@ git diff
 
 6. Now you have built the OpenDNN port of Caffe. We recommend lenet with MNIST dataset for test. Please follow intructions of [```caffe/examples/mnist/README.md```](https://github.com/BVLC/caffe/blob/master/examples/mnist/readme.md).
 
+## Difference between OpenDNN-CUDA and OpenDNN-OpenCL version
+We have some inevitable decisions which is not compatible each other between CUDA and OpenCL.
+- CUDA context (e.g. cudaMemcpy) is explicitly managed by users. This is the exactly same way of cuDNN.
+- OpenCL context (e.g. cl::CreateBuffer) is implicitly managed by each API. The input & output float array should reside at the host-side memory, not the device. (This is a weired, but practical decision to be compatible with cuDNN)
+
 ## TensorFlow 1.4.1 (Experimental)
-We provide an experimental OpenDNN patch for TensorFlow 1.4.1. Building TensorFlow from a source code is a long way and the version is outdated already. But, we just log a patch and hope to be helpful for someone. Several original cuDNN implementation with optimization (e.g. Autotuning of cuDNN algorithmic selection) is just discarded for portability. You can refer it as a baseline and try the similar way of Caffe for up-to-date TensorFlow. (Note that you should turn on cuDNN for this patch.)
+We provide an experimental OpenDNN patch for TensorFlow 1.4.1. Building TensorFlow from a source code is a long way and the version is outdated already. Thus, we just log a patch and hope to be helpful for someone. Several original cuDNN implementation with optimization (e.g. Autotuning of cuDNN algorithmic selection) is just discarded for portability. You can refer it as a baseline and try the similar way of Caffe for up-to-date TensorFlow. (Note that you should turn on cuDNN for this patch.)
 
 0. Install OpenDNN. (As you did with Caffe. Keep this file (`/usr/lib/libopendnn.so`) to be up-to-date, when you change source codes of OpenDNN.)
 ```
@@ -95,10 +112,12 @@ cd ../
 git diff
 ```
 
-2. Please follow the instruction of [TensorFlow 1.x build from source](https://www.tensorflow.org/install/source)
+2. Please follow the instruction of [TensorFlow 1.x - build from source](https://www.tensorflow.org/install/source)
+
+# Main code contributors
+Daeyeon Kim, [Young H. Oh](https://snu-arc.github.io/people/oyh/index.html)
 
 # Reference
 API descriptions and other information is available in the following thesis.
 
 [Daeyeon Kim, "OpenDNN: An Open-source, cuDNN-like Deep Learning Primitive Library," M.S. Thesis, Department of Computer Science and Engineering, Seoul National University, February 2019.](http://s-space.snu.ac.kr/bitstream/10371/150799/1/000000154337.pdf)
-
