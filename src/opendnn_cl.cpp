@@ -22,8 +22,8 @@ double get_time() {
 
 #include <stdlib.h>
 
-const int BLOCK_SIZE = 24;
-const int LIN_BLOCK_SIZE = 128;
+const int BLOCK_SIZE = 32;
+const int LIN_BLOCK_SIZE = 1024;
 
 using namespace std;
 
@@ -33,7 +33,6 @@ struct opendnnContext {
     vector<cl::Device> all_devices;
     cl::Context context;
     cl::CommandQueue* cmdq;
-    // TODO: create program in handler?
     cl::Program* program;
 };
 
@@ -562,6 +561,7 @@ void opendnnConvolutionForward (opendnnHandle_t handle,
             cl::NDRange(global),
             cl::NDRange(LIN_BLOCK_SIZE)
         );
+        // std::cout << "im2col: "<< ch << std::endl;
         q->enqueueCopyBuffer(col_in_batch_device, col_buf_device, 
             0, sizeof(float)*n*col_cnt_in_batch, sizeof(float)*col_cnt_in_batch);
     }

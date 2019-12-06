@@ -1,5 +1,11 @@
 const int BLOCK_SIZE = 24;
 
+__global__ void add_bias_broadcast(const int out_nst, const int out_cst,
+    const int out_hst, const int out_wst, const int bias_cst, const float* bias_data, float* output_data) {
+  output_data[blockIdx.x*out_wst + blockIdx.y*out_hst + threadIdx.x*out_cst + blockIdx.z*out_nst]
+    += bias_data[threadIdx.x*bias_cst];
+}
+
 // im2col kernel
 __global__ void im2col_gpu_kernel(const int n, const float* data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,

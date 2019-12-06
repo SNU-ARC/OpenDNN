@@ -188,22 +188,10 @@ void opendnnAddTensor (opendnnHandle_t handle,
     opendnnGetTensor4dDescriptor (output_desc, &out_n, &out_c, &out_h, &out_w,
         &out_nst, &out_cst, &out_hst, &out_wst);
 
-    for (int i = 0; i < out_n; ++i) {
-      for (int j = 0; j < out_c; ++j) {
-        for (int k = 0; k < out_h; ++k) {
-          for (int l = 0; l < out_w; ++l) {
-            output_data[l*out_wst + k*out_hst + j*out_cst + i*out_nst] +=
-              bias_data[j*bias_cst];
-              // TODO: AddTensor method is not appropriate for Caffe bias computation
-              // Braodcasting operations are needed like NumbPy lib in Python
-              // Currently this hard-codes repeatedly accumulating over channel dim
-
-              // This is original implementation of cudnnAddTensor
-              // bias_data[l*bias_wst + k*bias_hst + j*bias_cst + i*bias_nst];
-          }
-        }
-      }
-    }
+    dim3 grid(out_w, out_h, out_n);
+    dim3 block(out_c);
+    add_bias_broadcast<<<grid,block,0,global_stream>>>
+      (out_nst, out_cst, out_hst, out_wst, bias_cst, bias_data, output_data);
 }
 
 void im2col_gpu(const float* data_im, const int channels,

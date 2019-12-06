@@ -21,8 +21,9 @@ libopendnn: clean
 
 install: libopendnn
 	@echo "\n====================================="
-	@echo "Warning: This process will copy libopendnn.so into /usr/lib"
+	@echo "Warning: This process will copy libopendnn.so and opendnn.h into system path"
 	sudo cp lib/* /usr/lib/
+	sudo cp include/* /usr/include/
 
 clean:
 	$(MAKE) -C test clean

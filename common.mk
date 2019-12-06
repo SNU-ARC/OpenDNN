@@ -19,4 +19,4 @@ END=\033[0m
 # CPU: cpu (opendnn.cpp)
 # GPU-CUDA: cuda (opendnn.cu)
 # OpenCL: ocl (opendnn_cl.c)
-TARGET:=cpu
+TARGET:=cuda

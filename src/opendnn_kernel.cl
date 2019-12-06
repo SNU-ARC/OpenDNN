@@ -1,5 +1,5 @@
-#define BLOCK_SIZE 24
-#define LIN_BLOCK 128
+#define BLOCK_SIZE 32
+#define LIN_BLOCK 1024
 __kernel __attribute__((reqd_work_group_size(LIN_BLOCK, 1, 1)))
 void im2col_gpu_kernel(const int n , global const float *data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,

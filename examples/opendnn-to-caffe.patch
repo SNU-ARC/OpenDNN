@@ -12,7 +12,7 @@ index b7660e85..14d10507 100644
  
  # NCCL acceleration configuration
 diff --git a/include/caffe/layers/cudnn_conv_layer.hpp b/include/caffe/layers/cudnn_conv_layer.hpp
-index 31fe49a7..7a863770 100644
+index 31fe49a7..18bc53b4 100644
 --- a/include/caffe/layers/cudnn_conv_layer.hpp
 +++ b/include/caffe/layers/cudnn_conv_layer.hpp
 @@ -8,6 +8,7 @@
@@ -23,13 +23,14 @@ index 31fe49a7..7a863770 100644
  
  namespace caffe {
  
-@@ -47,6 +48,14 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
+@@ -47,6 +48,15 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
    cudnnHandle_t* handle_;
    cudaStream_t*  stream_;
  
 +  // opendnn
 +  opendnnHandle_t* opendnn_handle_;
 +  vector<opendnnTensorDescriptor_t> bottom_descsa_, top_descsa_;
++  opendnnTensorDescriptor_t    bias_desca_;
 +  opendnnFilterDescriptor_t filter_desca_;
 +  vector<opendnnConvolutionDescriptor_t> conv_descsa_;
 +  size_t *opendnn_workspace_fwd_sizes_;
@@ -39,7 +40,7 @@ index 31fe49a7..7a863770 100644
    cudnnConvolutionFwdAlgo_t *fwd_algo_;
    cudnnConvolutionBwdFilterAlgo_t *bwd_filter_algo_;
 diff --git a/src/caffe/layers/cudnn_conv_layer.cpp b/src/caffe/layers/cudnn_conv_layer.cpp
-index efc9e04e..cbd4b46d 100644
+index efc9e04e..d2b55e8d 100644
 --- a/src/caffe/layers/cudnn_conv_layer.cpp
 +++ b/src/caffe/layers/cudnn_conv_layer.cpp
 @@ -21,14 +21,15 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
@@ -74,15 +75,16 @@ index efc9e04e..cbd4b46d 100644
      workspace_bwd_data_sizes_[i] = 0;
      workspace_bwd_filter_sizes_[i] = 0;
    }
-@@ -52,6 +53,7 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+@@ -52,6 +53,8 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
      CUDA_CHECK(cudaStreamCreate(&stream_[g]));
      CUDNN_CHECK(cudnnCreate(&handle_[g]));
      CUDNN_CHECK(cudnnSetStream(handle_[g], stream_[g]));
++    opendnnCreate(&opendnn_handle_[g]);
 +    // OpenDNN cannot support multiple parallel streams now
      workspace[g] = NULL;
    }
  
-@@ -65,6 +67,10 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+@@ -65,6 +68,10 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
    cudnn::createFilterDesc<Dtype>(&filter_desc_,
        this->num_output_ / this->group_, this->channels_ / this->group_,
        kernel_h, kernel_w);
@@ -93,7 +95,7 @@ index efc9e04e..cbd4b46d 100644
  
    // Create tensor descriptor(s) for data and corresponding convolution(s).
    for (int i = 0; i < bottom.size(); i++) {
-@@ -77,6 +83,17 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+@@ -77,11 +84,23 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
      cudnnConvolutionDescriptor_t conv_desc;
      cudnn::createConvolutionDesc<Dtype>(&conv_desc);
      conv_descs_.push_back(conv_desc);
@@ -111,7 +113,13 @@ index efc9e04e..cbd4b46d 100644
    }
  
    // Tensor descriptor for bias.
-@@ -126,24 +143,27 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+   if (this->bias_term_) {
+     cudnn::createTensor4dDesc<Dtype>(&bias_desc_);
++    opendnnCreateTensorDescriptor(&bias_desca_);
+   }
+ 
+   handles_setup_ = true;
+@@ -126,24 +145,27 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
      cudnn::setConvolutionDesc<Dtype>(&conv_descs_[i], bottom_descs_[i],
          filter_desc_, pad_h, pad_w,
          stride_h, stride_w);
@@ -157,7 +165,7 @@ index efc9e04e..cbd4b46d 100644
  
      // choose backward algorithm for filter
      CUDNN_CHECK(cudnnGetConvolutionBackwardFilterAlgorithm(handle_[0],
-@@ -175,7 +195,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+@@ -175,7 +197,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
  
    for (size_t i = 0; i < bottom.size(); i++) {
      total_workspace_fwd        = std::max(total_workspace_fwd,
@@ -166,7 +174,7 @@ index efc9e04e..cbd4b46d 100644
      total_workspace_bwd_data   = std::max(total_workspace_bwd_data,
                                       workspace_bwd_data_sizes_[i]);
      total_workspace_bwd_filter = std::max(total_workspace_bwd_filter,
-@@ -201,10 +221,10 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+@@ -201,10 +223,10 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
      if (err != cudaSuccess) {
        // force zero memory path
        for (int i = 0; i < bottom.size(); i++) {
@@ -179,7 +187,16 @@ index efc9e04e..cbd4b46d 100644
          bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
          bwd_data_algo_[i] = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
        }
-@@ -240,6 +260,10 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
+@@ -228,6 +250,8 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+   if (this->bias_term_) {
+     cudnn::setTensor4dDesc<Dtype>(&bias_desc_,
+         1, this->num_output_ / this->group_, 1, 1);
++    opendnnSetTensor4dDescriptor(bias_desca_,
++        1, this->num_output_ / this->group_, 1, 1);
+   }
+ }
+ 
+@@ -240,6 +264,10 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
      cudnnDestroyTensorDescriptor(bottom_descs_[i]);
      cudnnDestroyTensorDescriptor(top_descs_[i]);
      cudnnDestroyConvolutionDescriptor(conv_descs_[i]);
@@ -190,7 +207,7 @@ index efc9e04e..cbd4b46d 100644
    }
    if (this->bias_term_) {
      cudnnDestroyTensorDescriptor(bias_desc_);
-@@ -249,16 +273,17 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
+@@ -249,16 +277,17 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
    for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
      cudaStreamDestroy(stream_[g]);
      cudnnDestroy(handle_[g]);
@@ -211,10 +228,10 @@ index efc9e04e..cbd4b46d 100644
    delete [] workspace_bwd_filter_sizes_;
  }
 diff --git a/src/caffe/layers/cudnn_conv_layer.cu b/src/caffe/layers/cudnn_conv_layer.cu
-index 8bc53462..3f349653 100644
+index 8bc53462..585541d0 100644
 --- a/src/caffe/layers/cudnn_conv_layer.cu
 +++ b/src/caffe/layers/cudnn_conv_layer.cu
-@@ -18,14 +18,12 @@ void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
+@@ -18,23 +18,19 @@ void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
      // Forward through cuDNN in parallel over groups.
      for (int g = 0; g < this->group_; g++) {
        // Filters.
@@ -235,3 +252,15 @@ index 8bc53462..3f349653 100644
  
        // Bias.
        if (this->bias_term_) {
+         const Dtype* bias_data = this->blobs_[1]->gpu_data();
+-        CUDNN_CHECK(cudnnAddTensor(handle_[g],
+-              cudnn::dataType<Dtype>::one,
+-              bias_desc_, bias_data + bias_offset_ * g,
+-              cudnn::dataType<Dtype>::one,
+-              top_descs_[i], top_data + top_offset_ * g));
++        opendnnAddTensor(opendnn_handle_[g],
++              bias_desca_, (const float*)(bias_data + bias_offset_ * g),
++              top_descsa_[i], (float*)(top_data + top_offset_ * g));
+       }
+     }
+ 
