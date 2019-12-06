@@ -1,0 +1,278 @@
+diff --git a/Makefile b/Makefile
+index b7660e85..14d10507 100644
+--- a/Makefile
++++ b/Makefile
+@@ -332,6 +332,8 @@ endif
+ ifeq ($(USE_CUDNN), 1)
+ 	LIBRARIES += cudnn
+ 	COMMON_FLAGS += -DUSE_CUDNN
++	LIBRARIES += opendnn
++	COMMON_FLAGS += -DOPENDNN
+ endif
+ 
+ # NCCL acceleration configuration
+diff --git a/include/caffe/layers/cudnn_conv_layer.hpp b/include/caffe/layers/cudnn_conv_layer.hpp
+index 31fe49a7..18bc53b4 100644
+--- a/include/caffe/layers/cudnn_conv_layer.hpp
++++ b/include/caffe/layers/cudnn_conv_layer.hpp
+@@ -8,6 +8,7 @@
+ #include "caffe/proto/caffe.pb.h"
+ 
+ #include "caffe/layers/conv_layer.hpp"
++#include "caffe/opendnn.h"
+ 
+ namespace caffe {
+ 
+@@ -47,6 +48,15 @@ class CuDNNConvolutionLayer : public ConvolutionLayer<Dtype> {
+   cudnnHandle_t* handle_;
+   cudaStream_t*  stream_;
+ 
++  // opendnn
++  opendnnHandle_t* opendnn_handle_;
++  vector<opendnnTensorDescriptor_t> bottom_descsa_, top_descsa_;
++  opendnnTensorDescriptor_t    bias_desca_;
++  opendnnFilterDescriptor_t filter_desca_;
++  vector<opendnnConvolutionDescriptor_t> conv_descsa_;
++  size_t *opendnn_workspace_fwd_sizes_;
++  // workspace obj is shared with cudnn
++
+   // algorithms for forward and backwards convolutions
+   cudnnConvolutionFwdAlgo_t *fwd_algo_;
+   cudnnConvolutionBwdFilterAlgo_t *bwd_filter_algo_;
+diff --git a/src/caffe/layers/cudnn_conv_layer.cpp b/src/caffe/layers/cudnn_conv_layer.cpp
+index efc9e04e..d2b55e8d 100644
+--- a/src/caffe/layers/cudnn_conv_layer.cpp
++++ b/src/caffe/layers/cudnn_conv_layer.cpp
+@@ -21,14 +21,15 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+   // Initialize CUDA streams and cuDNN.
+   stream_         = new cudaStream_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+   handle_         = new cudnnHandle_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
++  opendnn_handle_ = new opendnnHandle_t[this->group_ * CUDNN_STREAMS_PER_GROUP];
+ 
+   // Initialize algorithm arrays
+-  fwd_algo_       = new cudnnConvolutionFwdAlgo_t[bottom.size()];
++  // fwd_algo_       = new cudnnConvolutionFwdAlgo_t[bottom.size()];
+   bwd_filter_algo_= new cudnnConvolutionBwdFilterAlgo_t[bottom.size()];
+   bwd_data_algo_  = new cudnnConvolutionBwdDataAlgo_t[bottom.size()];
+ 
+   // initialize size arrays
+-  workspace_fwd_sizes_ = new size_t[bottom.size()];
++  opendnn_workspace_fwd_sizes_ = new size_t[bottom.size()];
+   workspace_bwd_filter_sizes_ = new size_t[bottom.size()];
+   workspace_bwd_data_sizes_ = new size_t[bottom.size()];
+ 
+@@ -39,11 +40,11 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+ 
+   for (size_t i = 0; i < bottom.size(); ++i) {
+     // initialize all to default algorithms
+-    fwd_algo_[i] = (cudnnConvolutionFwdAlgo_t)0;
++    // fwd_algo_[i] = (cudnnConvolutionFwdAlgo_t)0;
+     bwd_filter_algo_[i] = (cudnnConvolutionBwdFilterAlgo_t)0;
+     bwd_data_algo_[i] = (cudnnConvolutionBwdDataAlgo_t)0;
+     // default algorithms don't require workspace
+-    workspace_fwd_sizes_[i] = 0;
++    opendnn_workspace_fwd_sizes_[i] = 0;
+     workspace_bwd_data_sizes_[i] = 0;
+     workspace_bwd_filter_sizes_[i] = 0;
+   }
+@@ -52,6 +53,8 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+     CUDA_CHECK(cudaStreamCreate(&stream_[g]));
+     CUDNN_CHECK(cudnnCreate(&handle_[g]));
+     CUDNN_CHECK(cudnnSetStream(handle_[g], stream_[g]));
++    opendnnCreate(&opendnn_handle_[g]);
++    // OpenDNN cannot support multiple parallel streams now
+     workspace[g] = NULL;
+   }
+ 
+@@ -65,6 +68,10 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+   cudnn::createFilterDesc<Dtype>(&filter_desc_,
+       this->num_output_ / this->group_, this->channels_ / this->group_,
+       kernel_h, kernel_w);
++  opendnnCreateFilterDescriptor(&filter_desca_);
++  opendnnSetFilter4dDescriptor(filter_desca_,
++      this->num_output_ / this->group_, this->channels_ / this->group_,
++      kernel_h, kernel_w);
+ 
+   // Create tensor descriptor(s) for data and corresponding convolution(s).
+   for (int i = 0; i < bottom.size(); i++) {
+@@ -77,11 +84,23 @@ void CuDNNConvolutionLayer<Dtype>::LayerSetUp(
+     cudnnConvolutionDescriptor_t conv_desc;
+     cudnn::createConvolutionDesc<Dtype>(&conv_desc);
+     conv_descs_.push_back(conv_desc);
++
++    // opendnn
++    opendnnTensorDescriptor_t bottom_desca;
++    opendnnCreateTensorDescriptor(&bottom_desca);
++    bottom_descsa_.push_back(bottom_desca);
++    opendnnTensorDescriptor_t top_desca;
++    opendnnCreateTensorDescriptor(&top_desca);
++    top_descsa_.push_back(top_desca);
++    opendnnConvolutionDescriptor_t conv_desca;
++    opendnnCreateConvolutionDescriptor(&conv_desca);
++    conv_descsa_.push_back(conv_desca);
+   }
+ 
+   // Tensor descriptor for bias.
+   if (this->bias_term_) {
+     cudnn::createTensor4dDesc<Dtype>(&bias_desc_);
++    opendnnCreateTensorDescriptor(&bias_desca_);
+   }
+ 
+   handles_setup_ = true;
+@@ -126,24 +145,27 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+     cudnn::setConvolutionDesc<Dtype>(&conv_descs_[i], bottom_descs_[i],
+         filter_desc_, pad_h, pad_w,
+         stride_h, stride_w);
+-
+-    // choose forward and backward algorithms + workspace(s)
+-    CUDNN_CHECK(cudnnGetConvolutionForwardAlgorithm(handle_[0],
+-      bottom_descs_[i],
+-      filter_desc_,
+-      conv_descs_[i],
+-      top_descs_[i],
+-      CUDNN_CONVOLUTION_FWD_SPECIFY_WORKSPACE_LIMIT,
+-      workspace_limit_bytes,
+-      &fwd_algo_[i]));
+-
+-    CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(handle_[0],
+-      bottom_descs_[i],
+-      filter_desc_,
+-      conv_descs_[i],
+-      top_descs_[i],
+-      fwd_algo_[i],
+-      &(workspace_fwd_sizes_[i])));
++    opendnnSetTensor4dDescriptorEx(bottom_descsa_[i],
++        this->num_,
++        this->channels_ / this->group_, height, width,
++        this->channels_ * height * width,
++        height * width, width, 1);
++    opendnnSetTensor4dDescriptorEx(top_descsa_[i],
++        this->num_,
++        this->num_output_ / this->group_, height_out, width_out,
++        this->num_output_ * this->out_spatial_dim_,
++        this->out_spatial_dim_, width_out, 1);
++    opendnnSetConvolution2dDescriptor(conv_descsa_[i],
++        pad_h, pad_w,
++        stride_h, stride_w,
++        /*dir_h=*/0, /*dir_w=*/0);
++
++   opendnnGetConvolutionForwardWorkspaceSize(opendnn_handle_[0],
++      bottom_descsa_[i],
++      filter_desca_,
++      conv_descsa_[i],
++      top_descsa_[i],
++      &(opendnn_workspace_fwd_sizes_[i]));
+ 
+     // choose backward algorithm for filter
+     CUDNN_CHECK(cudnnGetConvolutionBackwardFilterAlgorithm(handle_[0],
+@@ -175,7 +197,7 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+ 
+   for (size_t i = 0; i < bottom.size(); i++) {
+     total_workspace_fwd        = std::max(total_workspace_fwd,
+-                                     workspace_fwd_sizes_[i]);
++                                     opendnn_workspace_fwd_sizes_[i]);
+     total_workspace_bwd_data   = std::max(total_workspace_bwd_data,
+                                      workspace_bwd_data_sizes_[i]);
+     total_workspace_bwd_filter = std::max(total_workspace_bwd_filter,
+@@ -201,10 +223,10 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+     if (err != cudaSuccess) {
+       // force zero memory path
+       for (int i = 0; i < bottom.size(); i++) {
+-        workspace_fwd_sizes_[i] = 0;
++        opendnn_workspace_fwd_sizes_[i] = 0;
+         workspace_bwd_filter_sizes_[i] = 0;
+         workspace_bwd_data_sizes_[i] = 0;
+-        fwd_algo_[i] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
++        // fwd_algo_[i] = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+         bwd_filter_algo_[i] = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
+         bwd_data_algo_[i] = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
+       }
+@@ -228,6 +250,8 @@ void CuDNNConvolutionLayer<Dtype>::Reshape(
+   if (this->bias_term_) {
+     cudnn::setTensor4dDesc<Dtype>(&bias_desc_,
+         1, this->num_output_ / this->group_, 1, 1);
++    opendnnSetTensor4dDescriptor(bias_desca_,
++        1, this->num_output_ / this->group_, 1, 1);
+   }
+ }
+ 
+@@ -240,6 +264,10 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
+     cudnnDestroyTensorDescriptor(bottom_descs_[i]);
+     cudnnDestroyTensorDescriptor(top_descs_[i]);
+     cudnnDestroyConvolutionDescriptor(conv_descs_[i]);
++    // opendnn
++    delete(bottom_descsa_[i]);
++    delete(top_descsa_[i]);
++    delete(conv_descsa_[i]);
+   }
+   if (this->bias_term_) {
+     cudnnDestroyTensorDescriptor(bias_desc_);
+@@ -249,16 +277,17 @@ CuDNNConvolutionLayer<Dtype>::~CuDNNConvolutionLayer() {
+   for (int g = 0; g < this->group_ * CUDNN_STREAMS_PER_GROUP; g++) {
+     cudaStreamDestroy(stream_[g]);
+     cudnnDestroy(handle_[g]);
++    opendnnDestroy(opendnn_handle_[g]);
+   }
+ 
+   cudaFree(workspaceData);
+   delete [] workspace;
+   delete [] stream_;
+   delete [] handle_;
+-  delete [] fwd_algo_;
++  delete [] opendnn_handle_;
+   delete [] bwd_filter_algo_;
+   delete [] bwd_data_algo_;
+-  delete [] workspace_fwd_sizes_;
++  delete [] opendnn_workspace_fwd_sizes_;
+   delete [] workspace_bwd_data_sizes_;
+   delete [] workspace_bwd_filter_sizes_;
+ }
+diff --git a/src/caffe/layers/cudnn_conv_layer.cu b/src/caffe/layers/cudnn_conv_layer.cu
+index 8bc53462..faf1eb31 100644
+--- a/src/caffe/layers/cudnn_conv_layer.cu
++++ b/src/caffe/layers/cudnn_conv_layer.cu
+@@ -10,31 +10,27 @@ __global__ void sync_conv_groups() { }
+ template <typename Dtype>
+ void CuDNNConvolutionLayer<Dtype>::Forward_gpu(
+     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+-  const Dtype* weight = this->blobs_[0]->gpu_data();
++  const Dtype* weight = this->blobs_[0]->cpu_data();
+   for (int i = 0; i < bottom.size(); ++i) {
+-    const Dtype* bottom_data = bottom[i]->gpu_data();
+-    Dtype* top_data = top[i]->mutable_gpu_data();
++    const Dtype* bottom_data = bottom[i]->cpu_data();
++    Dtype* top_data = top[i]->mutable_cpu_data();
+ 
+     // Forward through cuDNN in parallel over groups.
+     for (int g = 0; g < this->group_; g++) {
+       // Filters.
+-      CUDNN_CHECK(cudnnConvolutionForward(handle_[g],
+-            cudnn::dataType<Dtype>::one,
+-            bottom_descs_[i], bottom_data + bottom_offset_ * g,
+-            filter_desc_, weight + this->weight_offset_ * g,
+-            conv_descs_[i],
+-            fwd_algo_[i], workspace[g], workspace_fwd_sizes_[i],
+-            cudnn::dataType<Dtype>::zero,
+-            top_descs_[i], top_data + top_offset_ * g));
++      opendnnConvolutionForward(opendnn_handle_[g],
++            bottom_descsa_[i], (const float*)(bottom_data + bottom_offset_ * g),
++            filter_desca_, (const float*)(weight + this->weight_offset_ * g),
++            conv_descsa_[i],
++            (float*)workspace[g], opendnn_workspace_fwd_sizes_[i],
++            top_descsa_[i], (float*)(top_data + top_offset_ * g));
+ 
+       // Bias.
+       if (this->bias_term_) {
+-        const Dtype* bias_data = this->blobs_[1]->gpu_data();
+-        CUDNN_CHECK(cudnnAddTensor(handle_[g],
+-              cudnn::dataType<Dtype>::one,
+-              bias_desc_, bias_data + bias_offset_ * g,
+-              cudnn::dataType<Dtype>::one,
+-              top_descs_[i], top_data + top_offset_ * g));
++        const Dtype* bias_data = this->blobs_[1]->cpu_data();
++        opendnnAddTensor(opendnn_handle_[g],
++              bias_desca_, (const float*)(bias_data + bias_offset_ * g),
++              top_descsa_[i], (float*)(top_data + top_offset_ * g));
+       }
+     }
+ 
