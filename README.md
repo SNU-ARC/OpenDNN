@@ -86,10 +86,19 @@ git diff
 
 6. Now you have built the OpenDNN port of Caffe. We recommend lenet with MNIST dataset for test. Please follow intructions of [```caffe/examples/mnist/README.md```](https://github.com/BVLC/caffe/blob/master/examples/mnist/readme.md).
 
+7. You can check opendnn linking with following commands, or you can insert simple debug codes to the library internal (`opendnn.x`)
+```
+ldd ./examples/caffe/build/tools/caffe.bin | grep opendnn
+```
+
 ## Difference between OpenDNN-CUDA and OpenDNN-OpenCL version
 We have some inevitable decisions which is not compatible each other between CUDA and OpenCL.
-- CUDA context (e.g. cudaMemcpy) is explicitly managed by users. This is the exactly same way of cuDNN.
-- OpenCL context (e.g. cl::CreateBuffer) is implicitly managed by each API. The input & output float array should reside at the host-side memory, not the device. (This is a weired, but practical decision to be compatible with cuDNN)
+- CUDA data communication btw. the device and the host is explicitly managed by users. (e.g. cudaMemcpy) This is the exactly same way of cuDNN.
+- OpenCL data communication is implicitly managed by each API internal. (e.g. cl::CreateBuffer) The input & output float array should reside at the host-side memory, not the device. (This incurs redundant memory transactions, but is practical to be compatible with cuDNN)
+- You can check the difference when applying OpenDNN API by ...
+```
+diff ./examples/opendnn-to-caffe-ocl.patch ./examples/opendnn-to-caffe.patch
+```
 
 ## TensorFlow 1.4.1 (Experimental)
 We provide an experimental OpenDNN patch for TensorFlow 1.4.1. Building TensorFlow from a source code is a long way and the version is outdated already. Thus, we just log a patch and hope to be helpful for someone. Several original cuDNN implementation with optimization (e.g. Autotuning of cuDNN algorithmic selection) is just discarded for portability. You can refer it as a baseline and try the similar way of Caffe for up-to-date TensorFlow. (Note that you should turn on cuDNN for this patch.)
